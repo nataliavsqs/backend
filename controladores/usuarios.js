@@ -217,12 +217,36 @@ const editarCadastro = async (req, res) => {
 
         // Se o usuário for do tipo professor, atualiza os campos específicos de professor
         if (usuario.tipo_usuario === 'professor') {
-            await conexao.query(
-                `UPDATE professor 
-                 SET id_curso = $1, formacao = $2, informacoes_adicionais = $3, disponibilidade = $4 
-                 WHERE idprofessor = $5`,
-                [id_curso, formacao, informacoes_adicionais, disponibilidade, id]
-            );
+            const updates = [];
+            const values = [];
+            let index = 1;
+
+            if (id_curso !== undefined) {
+                updates.push(`id_curso = $${index++}`);
+                values.push(id_curso);
+            }
+            if (formacao !== undefined) {
+                updates.push(`formacao = $${index++}`);
+                values.push(formacao);
+            }
+            if (informacoes_adicionais !== undefined) {
+                updates.push(`informacoes_adicionais = $${index++}`);
+                values.push(informacoes_adicionais);
+            }
+            if (disponibilidade !== undefined) {
+                updates.push(`disponibilidade = $${index++}`);
+                values.push(disponibilidade);
+            }
+
+            if (updates.length > 0) {
+                values.push(id); // Adiciona o ID do professor como último parâmetro
+                await conexao.query(
+                    `UPDATE professor 
+                     SET ${updates.join(', ')} 
+                     WHERE idprofessor = $${index}`,
+                    values
+                );
+            }
         }
 
         res.json({

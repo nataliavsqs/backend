@@ -3,11 +3,11 @@ const {
 } = require('pg');
 
 const pool = new Pool({
-    user: 'postgres',
-    host: 'localhost',
-    database: 'appbraintutor',
-    password: 'nata12nina',
-    port: 5432,
+    user: process.env.DB_USER || 'postgres',
+    host: process.env.DB_HOST || 'localhost',
+    database: process.env.DB_NAME || 'appbraintutor',
+    password: process.env.DB_PASSWORD || 'nata12nina',
+    port: process.env.DB_PORT || 5432,
 });
 
 pool.query('SELECT NOW()', (err, res) => {
@@ -18,10 +18,4 @@ pool.query('SELECT NOW()', (err, res) => {
     }
 });
 
-const query = (text, params) => {
-    return pool.query(text, params);
-};
-
-module.exports = {
-    query
-};
+module.exports = pool;
