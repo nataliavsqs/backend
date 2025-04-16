@@ -2,22 +2,32 @@ const express = require("express");
 const roteador = require("./roteador");
 const {
     logarRequisicao,
-    travaSenha
-} = require("./intermediarios")
+    verificarToken
+} = require("./intermediarios");
+const {
+    loginUsuario,
+    recuperarSenha,
+    novoCadastro
+} = require("./controladores/usuarios");
+
 const app = express();
 app.use(express.json());
 
-
-//middleware
-app.use(logarRequisicao)
-app.use(travaSenha)
-
-
-
 app.use(roteador);
 
+// // Rotas públicas (não precisam de autenticação)
+// app.post("/login", loginUsuario);
+// app.post("/recuperar-senha", recuperarSenha);
+// app.post("/cadastro", novoCadastro); // Cadastro sem necessidade de token
 
+// // Middleware global para logar requisições
+// app.use(logarRequisicao);
+
+// // Middleware para proteger rotas
+// app.use(verificarToken);
+
+// // Rotas protegidas
 
 app.listen(8000, () => {
     console.log("Servidor rodando na porta 8000");
-}); // o app vai funcionar no localhost 8000app.get("/professores/:idConsulta", (req, res) => {
+});

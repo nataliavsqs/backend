@@ -1,7 +1,7 @@
 const conexao = require('../conexao');
 const securePassword = require('secure-password');
 const jwt = require('jsonwebtoken');
-const jwtSecret = require('../jwt_secret');
+const jwtSecret = process.env.JWT_SECRET || 'chave_secreta_padrao';
 
 const pwd = securePassword();
 
@@ -129,9 +129,8 @@ const consultarProfessores = async (req, res) => {
                 professor.informacoes_adicionais,
                 professor.disponibilidade
             FROM usuario
-            INNER JOIN professor ON usuario.idusuario = professor.idprofessor
-            WHERE usuario.tipo_usuario = $1`,
-            ['professor']
+            LEFT JOIN professor ON usuario.idusuario = professor.idprofessor
+            WHERE usuario.tipo_usuario = 'professor'`
         );
 
         res.json(professores);
@@ -172,19 +171,23 @@ const editarCadastro = async (req, res) => {
         telefone,
         email,
         endereco,
-        senha
+        senha,
+        id_curso,
+        formacao,
+        informacoes_adicionais,
+        disponibilidade
     } = req.body;
 
     try {
         // Verifica se o usuário com o ID existe
         const {
-            rowCount: usuarioExiste
+            rows: [usuario]
         } = await conexao.query(
-            'SELECT 1 FROM usuario WHERE idusuario = $1',
+            'SELECT * FROM usuario WHERE idusuario = $1',
             [id]
         );
 
-        if (usuarioExiste === 0) {
+        if (!usuario) {
             return res.status(404).json({
                 erro: 'Usuário não encontrado'
             });
@@ -204,20 +207,22 @@ const editarCadastro = async (req, res) => {
             }
         }
 
-        // Atualiza o cadastro do usuário
-        const {
-            rowCount
-        } = await conexao.query(
+        // Atualiza os dados básicos do usuário
+        await conexao.query(
             `UPDATE usuario 
              SET nome = $1, rg = $2, telefone = $3, email = $4, endereco = $5, senha = COALESCE($6, senha) 
              WHERE idusuario = $7`,
             [nome, rg, telefone, email, endereco, hashSenha, id]
         );
 
-        if (rowCount === 0) {
-            return res.status(404).json({
-                erro: 'Erro ao atualizar o cadastro'
-            });
+        // Se o usuário for do tipo professor, atualiza os campos específicos de professor
+        if (usuario.tipo_usuario === 'professor') {
+            await conexao.query(
+                `UPDATE professor 
+                 SET id_curso = $1, formacao = $2, informacoes_adicionais = $3, disponibilidade = $4 
+                 WHERE idprofessor = $5`,
+                [id_curso, formacao, informacoes_adicionais, disponibilidade, id]
+            );
         }
 
         res.json({
@@ -301,7 +306,8 @@ const loginUsuario = async (req, res) => {
                     id: usuario.idusuario,
                     tipo_usuario: usuario.tipo_usuario
                 },
-                process.env.JWT_SECRET, {
+                jwtSecret, // Use a variável jwtSecret
+                {
                     expiresIn: '1h'
                 }
             );

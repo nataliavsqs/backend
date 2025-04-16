@@ -23,5 +23,5 @@ const query = (text, params) => {
 };
 
 module.exports = {
-    query,
+    query
 };
