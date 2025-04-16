@@ -1,7 +1,7 @@
 -- drop database BrainTutor
 
 -- Criação do banco de dados
-CREATE DATABASE AppBrainTutor;
+CREATE DATABASE appbraintutor;
 -- Importante: no PostgreSQL, você conecta ao banco criado com \c PlataformaEstudos ou via interface
 -- Usar o banco (em SQL puro, isso não é usado; o comando é feito fora do SQL)
 -- \c PlataformaEstudos
