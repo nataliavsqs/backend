@@ -1,6 +1,7 @@
 const express = require("express");
 
 const usuarios = require('./controladores/usuarios')
+const { criarCurso } = require('./controladores/usuarios');
 
 const rotas = express();
 
@@ -27,4 +28,8 @@ rotas.delete('/apagar/:id', usuarios.apagarCadastro);
 rotas.post('/recuperar-senha', usuarios.recuperarSenha);
 //login 
 rotas.post('/login', usuarios.loginUsuario);
+
+// Rota para criar um curso (somente professores)
+rotas.post('/professores/:id/cursos', criarCurso);
+
 module.exports = rotas;

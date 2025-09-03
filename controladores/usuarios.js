@@ -55,7 +55,11 @@ const novoCadastro = async (req, res) => {
         email,
         endereco,
         tipo_usuario,
-        senha
+        senha,
+        id_curso,
+        formacao,
+        informacoes_adicionais,
+        disponibilidade
     } = req.body;
 
     // Verifica se o email já existe
@@ -92,7 +96,6 @@ const novoCadastro = async (req, res) => {
         });
     }
 
-
     try {
         // Criptografa a senha
         const hash = (await pwd.hash(Buffer.from(senha))).toString('hex');
@@ -102,6 +105,18 @@ const novoCadastro = async (req, res) => {
             'INSERT INTO usuario (nome, rg, telefone, email, tipo_usuario, endereco, permissao, senha) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
             [nome, rg, telefone, email, tipo_usuario, endereco, permissao, hash]
         );
+
+        // Se o tipo de usuário for professor, insere na tabela professor
+        if (tipo_usuario === 'professor') {
+            // Verifica se o curso existe
+            
+
+            // Insere na tabela professor
+            await conexao.query(
+                'INSERT INTO professor (idprofessor, id_curso, formacao, informacoes_adicionais, disponibilidade) VALUES ($1, $2, $3, $4, $5)',
+                [novoUsuario.idusuario, id_curso, formacao, informacoes_adicionais, disponibilidade]
+            );
+        }
 
         res.status(201).json(novoUsuario);
     } catch (error) {
@@ -190,6 +205,21 @@ const editarCadastro = async (req, res) => {
         if (!usuario) {
             return res.status(404).json({
                 erro: 'Usuário não encontrado'
+            });
+        }
+
+        console.log('ID do professor:', id);
+
+        const {
+            rowCount
+        } = await conexao.query(
+            'SELECT 1 FROM professor WHERE idprofessor = $1',
+            [id]
+        );
+
+        if (rowCount === 0) {
+            return res.status(404).json({
+                erro: 'Professor não encontrado na tabela professor'
             });
         }
 
@@ -401,6 +431,49 @@ const recuperarSenha = async (req, res) => {
     }
 };
 
+const criarCurso = async (req, res) => {
+    const { id } = req.params; // ID do professor
+    const { nome_curso, descricao_curso, carga_horaria } = req.body;
+
+    // Valida os campos obrigatórios
+    if (!nome_curso || !descricao_curso || !carga_horaria) {
+        return res.status(400).json({
+            erro: 'Os campos nome_curso, descricao_curso e carga_horaria são obrigatórios.'
+        });
+    }
+
+    try {
+        // Verifica se o professor existe
+        const { rowCount: professorExiste } = await conexao.query(
+            'SELECT 1 FROM professor WHERE idprofessor = $1',
+            [id]
+        );
+
+        if (professorExiste === 0) {
+            return res.status(404).json({
+                erro: 'Professor não encontrado. Apenas professores podem criar cursos.'
+            });
+        }
+
+        // Insere o curso na tabela Cursos
+        const { rows: [novoCurso] } = await conexao.query(
+            'INSERT INTO Cursos (nome_curso, descricao_curso, carga_horaria) VALUES ($1, $2, $3) RETURNING *',
+            [nome_curso, descricao_curso, carga_horaria]
+        );
+
+        res.status(201).json({
+            mensagem: 'Curso criado com sucesso.',
+            curso: novoCurso
+        });
+    } catch (error) {
+        console.error('Erro ao criar curso:', error);
+        res.status(500).json({
+            erro: 'Erro ao criar curso',
+            detalhes: error.message
+        });
+    }
+};
+
 module.exports = {
     consultarProfessores,
     editarCadastro,
@@ -408,5 +481,6 @@ module.exports = {
     apagarCadastro,
     consultarUsuarios,
     loginUsuario,
-    recuperarSenha
+    recuperarSenha,
+    criarCurso
 };
