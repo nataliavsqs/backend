@@ -6,7 +6,6 @@ const jwtSecret = process.env.JWT_SECRET || 'chave_secreta_padrao';
 const pwd = securePassword();
 
 function validarUsuario(usuario) {
-    // Verifica se professor e professor.body estão definidos
     if (!usuario || !usuario.body) {
         return "Dados do usuario são obrigatórios";
     }
@@ -31,6 +30,21 @@ function validarUsuario(usuario) {
     }
     if (!usuario.body.senha) {
         return "o campo 'senha' deve ser preenchido";
+    }
+
+    // Adicionar regras de senha
+    const senha = usuario.body.senha;
+    if (senha.length < 6) {
+        return "A senha deve ter pelo menos 6 caracteres";
+    }
+    if (!/[A-Z]/.test(senha)) {
+        return "A senha deve conter pelo menos uma letra maiúscula";
+    }
+    if (!/[a-z]/.test(senha)) {
+        return "A senha deve conter pelo menos uma letra minúscula";
+    }
+    if (!/[0-9]/.test(senha)) {
+        return "A senha deve conter pelo menos um número";
     }
 }
 
@@ -62,7 +76,7 @@ const novoCadastro = async (req, res) => {
         disponibilidade
     } = req.body;
 
-    // Verifica se o email já existe
+    // Verifica se o email ou o RG já existem
     try {
         const {
             rowCount: emailExiste
@@ -76,10 +90,23 @@ const novoCadastro = async (req, res) => {
                 erro: 'O email já está em uso. Por favor, use outro email.'
             });
         }
+
+        const {
+            rowCount: rgExiste
+        } = await conexao.query(
+            'SELECT 1 FROM usuario WHERE rg = $1',
+            [rg]
+        );
+
+        if (rgExiste > 0) {
+            return res.status(400).json({
+                erro: 'O RG já está em uso. Por favor, use outro RG.'
+            });
+        }
     } catch (error) {
-        console.error('Erro ao verificar email:', error);
+        console.error('Erro ao verificar email ou RG:', error);
         return res.status(500).json({
-            erro: 'Erro ao verificar email',
+            erro: 'Erro ao verificar email ou RG',
             detalhes: error.message
         });
     }
@@ -108,10 +135,6 @@ const novoCadastro = async (req, res) => {
 
         // Se o tipo de usuário for professor, insere na tabela professor
         if (tipo_usuario === 'professor') {
-            // Verifica se o curso existe
-            
-
-            // Insere na tabela professor
             await conexao.query(
                 'INSERT INTO professor (idprofessor, id_curso, formacao, informacoes_adicionais, disponibilidade) VALUES ($1, $2, $3, $4, $5)',
                 [novoUsuario.idusuario, id_curso, formacao, informacoes_adicionais, disponibilidade]
@@ -365,15 +388,17 @@ const loginUsuario = async (req, res) => {
                     expiresIn: '1h'
                 }
             );
-
-            return res.json({
+            return res.status(200).json({
                 mensagem: 'Login bem-sucedido',
-                token
+                token: token
             });
-        } else {
-            return res.status(401).json({
-                erro: 'Email ou senha inválidos'
-            });
+
+        } else if (resultado === securePassword.VALID_NEEDS_REHASH) {
+            const hash = (await pwd.hash(Buffer.from(senha))).toString('hex');
+            await conexao.query(
+                'UPDATE usuario SET senha = $1 WHERE idusuario = $2',
+                [hash, usuario.idusuario]
+            );
         }
     } catch (error) {
         console.error('Erro ao fazer login:', error);
@@ -432,8 +457,14 @@ const recuperarSenha = async (req, res) => {
 };
 
 const criarCurso = async (req, res) => {
-    const { id } = req.params; // ID do professor
-    const { nome_curso, descricao_curso, carga_horaria } = req.body;
+    const {
+        id
+    } = req.params; // ID do professor
+    const {
+        nome_curso,
+        descricao_curso,
+        carga_horaria
+    } = req.body;
 
     // Valida os campos obrigatórios
     if (!nome_curso || !descricao_curso || !carga_horaria) {
@@ -444,7 +475,9 @@ const criarCurso = async (req, res) => {
 
     try {
         // Verifica se o professor existe
-        const { rowCount: professorExiste } = await conexao.query(
+        const {
+            rowCount: professorExiste
+        } = await conexao.query(
             'SELECT 1 FROM professor WHERE idprofessor = $1',
             [id]
         );
@@ -456,7 +489,9 @@ const criarCurso = async (req, res) => {
         }
 
         // Insere o curso na tabela Cursos
-        const { rows: [novoCurso] } = await conexao.query(
+        const {
+            rows: [novoCurso]
+        } = await conexao.query(
             'INSERT INTO Cursos (nome_curso, descricao_curso, carga_horaria) VALUES ($1, $2, $3) RETURNING *',
             [nome_curso, descricao_curso, carga_horaria]
         );
